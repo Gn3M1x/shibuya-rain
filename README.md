@@ -6,6 +6,12 @@
 
 场景由程序化三维对象、Canvas 材质和 GLSL 天气系统组成。没有背景照片、视频、生成图片、在线模型或付费素材。字体随构建打包，运行时不需要连接素材 CDN。
 
+## 实际场景截图
+
+| 电影式默认界面 | 摄影模式（隐藏 UI） |
+| --- | --- |
+| ![Shibuya Rain 默认电影式场景](docs/screenshots/shibuya-overview.png) | ![Shibuya Rain 摄影模式场景](docs/screenshots/shibuya-photography-mode.png) |
+
 ## 本地运行
 
 要求：Node.js 22.12+（本次使用 Node.js 24.21.0）、npm、支持 WebGL 2 的浏览器。优先使用启用硬件加速的 macOS Chrome。
