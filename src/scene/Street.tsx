@@ -1,71 +1,80 @@
 import { useMemo } from 'react'
+import { MeshReflectorMaterial } from '@react-three/drei'
 import * as THREE from 'three'
-import { Batch, Box, Cylinder, type Part } from './Primitives'
-import { random } from './materials'
-import { WetRoad } from './WetRoad'
+import { QUALITY, type Quality } from '../config'
+import { asphaltTextures, random } from './materials'
+import { Batch, Box, type Part } from './Primitives'
 
-function Puddle({ x,z,scale=1 }: { x:number; z:number; scale?:number }) {
-  const shape=useMemo(()=>{
-    const s=new THREE.Shape(),rng=random(Math.round((x+10)*77+z*3))
-    for(let i=0;i<=32;i++){const a=i/32*Math.PI*2,r=.72+rng()*.16;const px=Math.cos(a)*r*scale,py=Math.sin(a)*r*scale*.46;if(i===0)s.moveTo(px,py);else s.lineTo(px,py)}
-    return s
-  },[x,z,scale])
-  return <mesh position={[x,.039,z]} rotation={[-Math.PI/2,0,0]}><shapeGeometry args={[shape]} /><meshStandardMaterial color="#83b2c0" transparent opacity={.14} metalness={.5} roughness={.08} depthWrite={false} /></mesh>
+function wetReflection(material: THREE.Material) {
+  if (material.userData.wetReflection) return
+  material.userData.wetReflection = true
+  const compile = material.onBeforeCompile.bind(material)
+  material.onBeforeCompile = (shader, renderer) => {
+    compile(shader, renderer)
+    // A thin water layer reflects independently of diffuse asphalt illumination.
+    // Preserve Drei's real planar capture and roughness-dependent blur, then mix
+    // it as the water film rather than multiply it into the dark diffuse base.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'diffuseColor.rgb = diffuseColor.rgb * ((1.0 - min(1.0, mirror)) + newMerge.rgb * mixStrength);',
+      `float wetFresnel = .2 + .8 * pow(1.0 - max(0.0, dot(normalize(vViewPosition), normal)), 3.0);
+       float wetFilm = .07 + .27 * pow(1.0 - reflectorRoughnessFactor, 2.0);
+       totalEmissiveRadiance += max(vec3(0.), newMerge.rgb) * wetFresnel * wetFilm * mixStrength;
+       diffuseColor.rgb *= .65;`,
+    )
+  }
+  material.customProgramCacheKey = () => 'shibuya-wet-film-v1'
+  material.needsUpdate = true
 }
 
-export function Street() {
-  const {tiles,curbs,marks,tactile,grates} = useMemo(()=>{
-    const tiles:Part[]=[],curbs:Part[]=[],marks:Part[]=[],tactile:Part[]=[],grates:Part[]=[]
-    const rng=random(98)
-    for(let x=-7.5;x<4.6;x+=.68)for(let z=-7.5;z<3.2;z+=.68){
-      if(x>-5.9&&x<3.6&&z>-5.85&&z<.9)continue
-      tiles.push({p:[x+.32,.222,z+.32],s:[.661,.025,.661],c:rng()>.52?'#788b8e':'#71858a'})
+function GroundGlow() {
+  // Low-cost fallback and soft indirect light. It is deliberately subtle: the
+  // actual planar reflection above remains the source of reflected architecture.
+  return <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .012, 10]}>
+    <planeGeometry args={[35, 40]} />
+    <shaderMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending}
+      vertexShader={`varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`}
+      fragmentShader={`varying vec2 vUv;
+        float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+        void main(){vec2 p=vUv;float n=hash(floor(p*vec2(270.,1900.)));float d=abs(p.x-.51);
+        float glow=exp(-d*d*60.)*exp(-abs(p.y-.77)*7.);
+        float strips=(.45+.55*sin(p.x*95.+sin(p.y*700.)*.5));
+        float mask=glow*(.1+.5*n)*strips;gl_FragColor=vec4(vec3(.65,.57,.38)*mask,.13);}`}
+    />
+  </mesh>
+}
+
+export function Street({ quality }: { quality: Quality }) {
+  const maps = useMemo(asphaltTextures, [])
+  const { curbs, markings, grates, tiles } = useMemo(() => {
+    const curbs: Part[] = [], markings: Part[] = [], grates: Part[] = [], tiles: Part[] = []
+    const rng = random(61)
+    for (let x = -32; x < 34; x += .78) {
+      curbs.push({ p: [x, .115, 2.55], s: [.75, .23, .28], c: rng() > .5 ? '#626d69' : '#747d73' })
+      tiles.push({ p: [x, .235, 1.96], s: [.75, .014, .32], c: '#8b845c' })
+      for (let z = -.5; z < 2.5; z += .55) tiles.push({ p: [x, .226, z], s: [.75, .015, .52], c: rng() > .5 ? '#535f5b' : '#5e6961' })
+      if (Math.abs(x % 4) < .8) for (let j = 0; j < 9; j++) grates.push({ p: [x - .32 + j * .075, .025, 2.9], s: [.025, .022, .35], c: '#101e22' })
     }
-    for(let x=-7.65;x<4.8;x+=.63)curbs.push({p:[x,.145,3.38],s:[.605,.29,.22],c:'#9ba7a2'})
-    for(let z=-7.6;z<3.4;z+=.63)curbs.push({p:[4.87,.145,z],s:[.22,.29,.605],c:'#9ba7a2'})
-    for(let x=-6.9;x<4.4;x+=.24){
-      tactile.push({p:[x,.248,2.7],s:[.23,.028,.35],c:'#c5b27b'})
-      for(let n=0;n<3;n++) tactile.push({p:[x-.07+n*.065,.268,2.7],s:[.018,.012,.29],c:'#dac790'})
-    }
-    for(let z=-6.2;z<2.7;z+=.24){
-      tactile.push({p:[4.14,.248,z],s:[.35,.028,.23],c:'#c5b27b'})
-      for(let n=0;n<3;n++)tactile.push({p:[4.14,.268,z-.07+n*.065],s:[.29,.012,.018],c:'#dac790'})
-    }
-    for(let i=0;i<7;i++)marks.push({p:[-5.85+i*.89,.037,5.34],s:[.48,.015,2.77],c:'#c5cfbf'})
-    marks.push({p:[-3.2,.039,3.94],s:[6.2,.018,.1],c:'#e1dcc0'})
-    marks.push({p:[6.45,.039,3.1],s:[2.2,.018,.1],c:'#e1dcc0'})
-    for(let z=-6;z<2.9;z+=2.5)marks.push({p:[7.55,.037,z],s:[.08,.012,1.25],c:'#adbbae'})
-    // A single compact parking bay, on the side street.
-    for(const z of [-5.7,-2.4]) marks.push({p:[6.45,.038,z],s:[1.63,.018,.075],c:'#c5c8ae'})
-    marks.push({p:[5.64,.038,-4.05],s:[.075,.018,3.3],c:'#c5c8ae'})
-    marks.push({p:[6.36,.04,-3.7],s:[.085,.02,.68],c:'#cbd0bc'})
-    marks.push({p:[6.6,.04,-3.42],s:[.5,.02,.08],c:'#cbd0bc'})
-    marks.push({p:[6.82,.04,-3.66],s:[.08,.02,.48],c:'#cbd0bc'})
-    marks.push({p:[6.61,.04,-3.9],s:[.45,.02,.08],c:'#cbd0bc'})
-    for(let x=-7.1;x<4.7;x+=1.8){
-      grates.push({p:[x,.04,3.69],s:[.94,.035,.29],c:'#263e4b'})
-      for(let j=0;j<12;j++)grates.push({p:[x-.43+j*.078,.066,3.69],s:[.029,.014,.25],c:'#6c858b'})
-    }
-    for(let z=-6.6;z<3;z+=2){
-      grates.push({p:[5.17,.04,z],s:[.27,.035,.85],c:'#263e4b'})
-      for(let j=0;j<10;j++)grates.push({p:[5.17,.066,z-.36+j*.078],s:[.23,.014,.026],c:'#6c858b'})
-    }
-    return {tiles,curbs,marks,tactile,grates}
-  },[])
-  return <group name="square-diorama-base">
-    <Box p={[0,-.48,0]} s={[16.1,.83,16.1]} c="#28394c" />
-    <Box p={[0,-.88,0]} s={[15.72,.1,15.72]} c="#17283b" />
-    <Box p={[0,-.065,0]} s={[16.13,.07,16.13]} c="#7a9298" outline={false} />
-    <WetRoad />
-    <Box p={[-1.52,.115,-2.08]} s={[12.55,.22,10.8]} c="#71878b" outline={false} />
-    <Batch parts={tiles} /><Batch parts={curbs} outline /><Batch parts={marks} /><Batch parts={tactile} /><Batch parts={grates} />
-    <Puddle x={1.4} z={5.1} scale={1.6} /><Puddle x={5.95} z={.7} scale={1.1} /><Puddle x={-6.1} z={7.1} scale={1.2} /><Puddle x={3.8} z={6.7} scale={1.4} />
-    <group position={[5.9,.07,5.73]}>
-      <Cylinder p={[0,0,0]} radius={.47} height={.028} c="#334e60" />
-      {[.29,.42].map(r=><mesh key={r} rotation={[-Math.PI/2,0,0]} position={[0,.019,0]}><ringGeometry args={[r,r+.012,40]} /><meshBasicMaterial color="#829ba0" /></mesh>)}
-      <Batch parts={Array.from({length:7},(_,i)=>({p:[-.25+i*.08,.02,0],s:[.02,.01,.42],c:'#7c9597'})) as Part[]} />
+    // Worn crossing across the near road, with actual three-dimensional markings.
+    for (let i = 0; i < 9; i++) markings.push({ p: [-14.0 + i * 1.43, .016, 12.3], s: [.75, .012, 5.8], c: '#9b9d8d', r: [0, -.12, 0] })
+    for (let x = -36; x < 40; x += 7) markings.push({ p: [x, .018, 7.6], s: [3.6, .012, .105], c: '#b0a888' })
+    markings.push({ p: [0, .018, 3.4], s: [70, .012, .09], c: '#a7aaa0' })
+    return { curbs, markings, grates, tiles }
+  }, [])
+  return <group name="wet-street">
+    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[130, 130]} />
+      {quality === 'low' ? <meshStandardMaterial color="#3b474c" map={maps.color} normalMap={maps.normal} normalScale={new THREE.Vector2(.6, .6)} roughnessMap={maps.roughness} roughness={.62} metalness={.35} /> :
+        <MeshReflectorMaterial key={quality} onUpdate={wetReflection} resolution={QUALITY[quality].reflection} blur={[quality === 'high' ? 240 : 180, 70]} mixBlur={1.2} mixStrength={2.7} mirror={.65}
+          color="#8d999e" map={maps.color} normalMap={maps.normal} normalScale={new THREE.Vector2(.3, .5)} roughnessMap={maps.roughness} roughness={.95} metalness={.15}
+          depthScale={0} mixContrast={1.05} reflectorOffset={.005} />}
+    </mesh>
+    <GroundGlow />
+    <Box p={[0, .105, .2]} s={[90, .21, 4.5]} c="#3c4a49" roughness={.58} receiveShadow />
+    <Batch parts={tiles} roughness={.48} /><Batch parts={curbs} roughness={.65} /><Batch parts={markings} roughness={.5} /><Batch parts={grates} metalness={.65} />
+    {/* A manhole with concentric iron rims and a recessed center. */}
+    <group position={[6.4, .024, 8.8]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh><circleGeometry args={[.7, 48]} /><meshStandardMaterial color="#293c40" roughness={.38} metalness={.7} /></mesh>
+      {[.3, .48, .65].map(r => <mesh key={r} position={[0, 0, .002]}><ringGeometry args={[r, r + .015, 48]} /><meshStandardMaterial color="#687572" roughness={.5} metalness={.7} /></mesh>)}
     </group>
-    {/* The only world outside the plinth is its soft studio shadow. */}
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.96,0]} receiveShadow><planeGeometry args={[200,200]} /><shadowMaterial color="#080f25" opacity={.32} transparent depthWrite={false} /></mesh>
   </group>
 }

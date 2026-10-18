@@ -1,82 +1,130 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { QUALITY, type Quality } from '../config'
 import { random } from './materials'
 
-const vertex = `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`
+const rainVertex = `
+attribute vec4 aSeed;
+uniform float uTime;
+uniform float uDrip;
+varying float vAlpha;
+varying vec2 vUv;
+void main(){
+  vUv=uv;
+  float height=mix(24.,3.25,uDrip);
+  float speed=mix(12.+aSeed.w*12.,5.+aSeed.w*3.,uDrip);
+  float y=mod(aSeed.y*height-uTime*speed,height);
+  vec3 p=vec3(mix(aSeed.x*70.-35.,aSeed.x*14.6-7.3,uDrip),y,mix(aSeed.z*68.-30.,-.61,uDrip));
+  p.x+=y*.065;
+  float streakLength=mix(.17+aSeed.w*.31,.14,uDrip);
+  p+=vec3(position.x*(.009+aSeed.w*.008)+position.y*streakLength*.065,position.y*streakLength,0.);
+  float storeLight=exp(-length(p.xz-vec2(0.,-.8))*.1);
+  vAlpha=(.15+storeLight*.46)*mix(1.,.6,uDrip);
+  if(uDrip<.5&&p.x>-7.5&&p.x<7.6&&p.z<-1.5&&p.z>-10.5&&p.y<6.5)vAlpha=0.;
+  gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);
+}`
+const rainFragment = `
+varying float vAlpha;
+varying vec2 vUv;
+uniform float uIntensity;
+void main(){float edge=1.-abs(vUv.y-.5)*2.;gl_FragColor=vec4(.68,.8,.84,vAlpha*edge*uIntensity);}`
 
-function Rain({drips=false}: {drips?:boolean}) {
-  const material = useRef<THREE.ShaderMaterial>(null!), count=drips?100:2400
-  const geometry=useMemo(()=>{
-    const g=new THREE.PlaneGeometry(drips?.011:.012,drips?.09:.2),seeds=new Float32Array(count*4),rng=random(drips?27:98)
-    for(let i=0;i<count;i++)seeds.set([rng(),rng(),rng(),rng()],i*4)
-    g.setAttribute('aSeed',new THREE.InstancedBufferAttribute(seeds,4));return g
-  },[count,drips])
-  const uniforms=useMemo(()=>({uTime:{value:0}}),[])
-  useFrame(({clock})=>{ material.current.uniforms.uTime.value=clock.elapsedTime })
-  return <instancedMesh args={[geometry,undefined,count]} frustumCulled={false} name={drips?'eaves-drips':'continuous-rain'}>
-    <shaderMaterial ref={material} transparent depthWrite={false} side={THREE.DoubleSide} uniforms={uniforms}
-      vertexShader={`attribute vec4 aSeed;uniform float uTime;varying float vAlpha;
-      void main(){float speed=${drips?'1.5':'1.1'}+aSeed.w*.6;float phase=fract(aSeed.z-uTime*speed*.5);
-      vec3 p;${drips?`p=vec3(-5.9+aSeed.x*9.4,.26+phase*2.8,1.69);`:`p=vec3(-7.85+fract(aSeed.x+uTime*.007)*15.7,.05+phase*9.,-7.85+aSeed.y*15.7);
-      if(p.x> -5.85 && p.x<3.65 && p.z> -5.85 && p.z<1.1 && p.y<4.05) p.y=4.05+phase*4.;`}
-      p+=vec3(position.x+position.y*.16,position.y,0.);vAlpha=.09+aSeed.w*.17;
-      gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);}`}
-      fragmentShader="varying float vAlpha;void main(){gl_FragColor=vec4(.62,.77,.87,vAlpha);}" />
+function RainVolume({ count, intensity, drip = false }: { count: number; intensity: number; drip?: boolean }) {
+  const material = useRef<THREE.ShaderMaterial>(null!)
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(1, 1), data = new Float32Array(count * 4), rng = random(drip ? 8 : 174)
+    for (let i = 0; i < data.length; i++) data[i] = rng()
+    g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(data, 4))
+    return g
+  }, [count, drip])
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uDrip: { value: drip ? 1 : 0 }, uIntensity: { value: intensity } }), [drip])
+  useFrame(({ clock }) => {
+    material.current.uniforms.uTime.value = clock.elapsedTime
+    material.current.uniforms.uIntensity.value = intensity
+  })
+  return <instancedMesh args={[geometry, undefined, count]} frustumCulled={false} renderOrder={2}>
+    <shaderMaterial ref={material} vertexShader={rainVertex} fragmentShader={rainFragment} uniforms={uniforms} transparent depthWrite={false} side={THREE.DoubleSide} />
   </instancedMesh>
 }
 
-function Ripples() {
-  const material=useRef<THREE.ShaderMaterial>(null!), count=75
-  const geometry=useMemo(()=>{
-    const g=new THREE.PlaneGeometry(1,1), seeds=new Float32Array(count*4),rng=random(936)
-    for(let i=0;i<count;i++){
-      let x=rng()*15.2-7.6,z=rng()*15.2-7.6
-      if(x<5.25&&z<3.55){z=3.7+rng()*3.9}
-      seeds.set([x,z,rng(),.4+rng()*.6],i*4)
+function Ripples({ count, intensity }: { count: number; intensity: number }) {
+  const material = useRef<THREE.ShaderMaterial>(null!)
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(1, 1), data = new Float32Array(count * 4), rng = random(43)
+    for (let i = 0; i < count; i++) {
+      data[i * 4] = rng() * 56 - 28
+      data[i * 4 + 1] = rng() * 33 + 3.1
+      data[i * 4 + 2] = rng(); data[i * 4 + 3] = rng()
     }
-    g.setAttribute('aSeed',new THREE.InstancedBufferAttribute(seeds,4));return g
-  },[])
-  const uniforms=useMemo(()=>({uTime:{value:0}}),[])
-  useFrame(({clock})=>{material.current.uniforms.uTime.value=clock.elapsedTime})
-  return <instancedMesh args={[geometry,undefined,count]} frustumCulled={false} name="puddle-ripples">
-    <shaderMaterial ref={material} transparent depthWrite={false} uniforms={uniforms} side={THREE.DoubleSide}
-      vertexShader={`attribute vec4 aSeed;uniform float uTime;varying vec2 vUv;varying float vAge;
-      void main(){vUv=uv;vAge=fract(uTime*.63+aSeed.z);float scale=(.08+vAge*.7)*aSeed.w;
-      vec3 p=vec3(aSeed.x+position.x*scale,.071,aSeed.y+position.y*scale);
+    g.setAttribute('aData', new THREE.InstancedBufferAttribute(data, 4)); return g
+  }, [count])
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uIntensity: { value: 1 } }), [])
+  useFrame(({ clock }) => { material.current.uniforms.uTime.value = clock.elapsedTime; material.current.uniforms.uIntensity.value = intensity })
+  return <instancedMesh args={[geometry, undefined, count]} frustumCulled={false}>
+    <shaderMaterial ref={material} uniforms={uniforms} transparent depthWrite={false}
+      vertexShader={`attribute vec4 aData;uniform float uTime;varying vec2 vUv;varying float vAge;varying float vSeed;
+      void main(){vUv=uv;vAge=fract(uTime*(.6+aData.w*.4)+aData.z);vSeed=aData.w;
+      float size=.4+aData.w*.7;vec3 p=vec3(aData.x+position.x*size,.028,aData.y+position.y*size);
       gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);}`}
-      fragmentShader={`varying vec2 vUv;varying float vAge;
-      void main(){float r=length(vUv-.5);float ring=1.-smoothstep(.007,.02,abs(r-.39));float ring2=1.-smoothstep(.006,.016,abs(r-.26));float fade=sin(vAge*3.14159)*.42;
-      gl_FragColor=vec4(.59,.8,.84,(ring+ring2*.4)*fade);}`} />
+      fragmentShader={`varying vec2 vUv;varying float vAge;varying float vSeed;uniform float uIntensity;
+      void main(){float d=length(vUv-.5);float ring=exp(-pow((d-vAge*.45)*105.,2.));
+      float second=exp(-pow((d-vAge*.32)*110.,2.))*.4;
+      float splash=exp(-d*80.)*max(0.,1.-vAge*9.);
+      float a=(ring+second)*pow(1.-vAge,2.)*.22+splash*.55;
+      gl_FragColor=vec4(mix(vec3(.35,.51,.58),vec3(.79,.74,.54),vSeed),a*uIntensity);}`}
+    />
   </instancedMesh>
 }
 
-function GlassRain({side=false}: {side?:boolean}) {
-  const material=useRef<THREE.ShaderMaterial>(null!)
-  const uniforms=useMemo(()=>({uTime:{value:0}}),[])
-  useFrame(({clock})=>{material.current.uniforms.uTime.value=clock.elapsedTime})
-  return <mesh position={side?[3.4,1.93,-2.4]:[-1.2,1.94,.845]} rotation={side?[0,Math.PI/2,0]:[0,0,0]} name="glass-water-trails">
-    <planeGeometry args={[side?6.25:9.07,2.45]} />
-    <shaderMaterial ref={material} uniforms={uniforms} transparent depthWrite={false} side={THREE.DoubleSide} vertexShader={vertex}
-      fragmentShader={`varying vec2 vUv;uniform float uTime;
-      float hash(float n){return fract(sin(n*127.1)*43758.5453);}
-      void main(){float id=floor(vUv.x*79.);float line=abs(fract(vUv.x*79.)-.5-sin(vUv.y*21.+id)*.045);
-      float drop=fract(vUv.y*.9+uTime*(.035+hash(id)*.04)+hash(id)*9.);
-      float trail=(1.-smoothstep(.005,.026,line))*(1.-smoothstep(.0,.16,drop));
-      float bead=(1.-smoothstep(.015,.07,length(vec2(line*.8,drop))));
-      gl_FragColor=vec4(.73,.91,.9,trail*.16+bead*.23);}`} />
+function GlassStreaks() {
+  const ref = useRef<THREE.ShaderMaterial>(null!)
+  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), [])
+  useFrame(({ clock }) => { ref.current.uniforms.uTime.value = clock.elapsedTime })
+  return <mesh position={[-2.8, 1.8, -1.916]}>
+    <planeGeometry args={[8.5, 2.8]} />
+    <shaderMaterial ref={ref} transparent depthWrite={false} uniforms={uniforms}
+      vertexShader="varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }"
+      fragmentShader={`varying vec2 vUv;uniform float uTime;void main(){
+      float x=vUv.x*143.;float line=pow(max(0.,sin(x+sin(vUv.y*12.)*.2)),80.);
+      float flow=pow(max(0.,sin(vUv.y*13.+uTime*.35+floor(x)*1.7)),12.);
+      gl_FragColor=vec4(.65,.79,.79,line*flow*.13);}`}
+    />
   </mesh>
 }
 
-function LightPools() {
-  return <group name="soft-neon-on-wet-asphalt">
-    {([{p:[-1,.075,4.8],s:[8,5],c:[.9,.55,.23],o:.3},{p:[5.7,.078,1.6],s:[3.2,5.7],c:[.3,.65,.73],o:.2},{p:[-5.2,.079,3.8],s:[2,3.7],c:[.7,.28,.22],o:.1}] as const).map((v,i)=><mesh key={i} position={[...v.p]} rotation={[-Math.PI/2,0,0]}>
-      <planeGeometry args={[...v.s]} /><shaderMaterial transparent depthWrite={false} blending={THREE.AdditiveBlending} uniforms={{uColor:{value:new THREE.Color(...v.c)},uOpacity:{value:v.o}}} vertexShader={vertex}
-        fragmentShader={`varying vec2 vUv;uniform vec3 uColor;uniform float uOpacity;void main(){vec2 p=(vUv-.5)*2.;float mask=pow(max(0.,1.-dot(p,p)),2.);float wave=.7+.3*sin(vUv.y*220.+sin(vUv.x*34.)*2.);gl_FragColor=vec4(uColor,mask*wave*uOpacity);}`} />
-    </mesh>)}
-  </group>
+function SplashParticles({ count, intensity }: { count: number; intensity: number }) {
+  const material = useRef<THREE.ShaderMaterial>(null!)
+  const geometry = useMemo(() => {
+    const g = new THREE.PlaneGeometry(.009, .05), seeds = new Float32Array(count * 4), rng = random(29)
+    for (let i = 0; i < count; i++) {
+      const cluster = Math.floor(i / 5)
+      // Share the same ground impact position for each five-particle crown.
+      const base = random(cluster + 480)
+      seeds.set([base() * 45 - 22.5, base() * 27 + 3.3, base(), rng()], i * 4)
+    }
+    g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seeds, 4)); return g
+  }, [count])
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uIntensity: { value: intensity } }), [])
+  useFrame(({ clock }) => { material.current.uniforms.uTime.value = clock.elapsedTime; material.current.uniforms.uIntensity.value = intensity })
+  return <instancedMesh args={[geometry, undefined, count]} frustumCulled={false}>
+    <shaderMaterial ref={material} transparent depthWrite={false} side={THREE.DoubleSide} uniforms={uniforms}
+      vertexShader={`attribute vec4 aSeed;uniform float uTime;varying float vAge;void main(){
+      vAge=fract(uTime*1.45+aSeed.z);float angle=aSeed.w*6.2831;
+      vec3 p=vec3(aSeed.x+cos(angle)*vAge*.32,.035+sin(vAge*3.14159)*.17,aSeed.y+sin(angle)*vAge*.32);
+      p+=position;gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);}`}
+      fragmentShader={`varying float vAge;uniform float uIntensity;void main(){gl_FragColor=vec4(.55,.7,.73,pow(1.-vAge,3.)*.45*uIntensity);}`}
+    />
+  </instancedMesh>
 }
 
-export function Weather() {
-  return <group name="subtle-rain-animations"><Rain /><Rain drips /><Ripples /><GlassRain /><GlassRain side /><LightPools /></group>
+export function Weather({ quality, rain }: { quality: Quality; rain: number }) {
+  const density = Math.max(0, rain / 100)
+  return <group name="gpu-weather">
+    <RainVolume count={Math.max(1, Math.round(QUALITY[quality].rain * density))} intensity={Math.min(1, density * 1.8)} />
+    <RainVolume count={Math.max(1, Math.round(100 * density))} intensity={density} drip />
+    <Ripples count={QUALITY[quality].ripples} intensity={density} />
+    <SplashParticles count={QUALITY[quality].ripples * 5} intensity={density} />
+    {rain > 0 && <GlassStreaks />}
+  </group>
 }

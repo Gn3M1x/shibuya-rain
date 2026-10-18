@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Deploy Shibuya Rain to GitHub Pages
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build site
-        run: npm run build
+        run: npm run build -- --mode github-pages
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

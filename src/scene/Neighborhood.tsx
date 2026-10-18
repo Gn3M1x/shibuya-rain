@@ -1,160 +1,127 @@
-import { useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
-import { Line } from '@react-three/drei'
+import { useMemo } from 'react'
 import * as THREE from 'three'
-import { Batch, Box, Cylinder, Pipe, Sign, type Part, type V3 } from './Primitives'
-import { foodTexture, signTexture } from './materials'
+import { Batch, Box, Pipe, Sign, type Part, type V3 } from './Primitives'
+import { concreteTexture, random, sevenTexture, signTexture } from './materials'
 
-function AirConditioner({p,rotation=0}: {p:V3;rotation?:number}) {
-  return <group position={p} rotation={[0,rotation,0]} name="air-conditioning-unit">
-    <Box p={[0,.4,0]} s={[1.35,.76,.65]} c="#abb7a6" />
-    <Cylinder p={[-.25,.41,.34]} radius={.27} height={.025} rotation={[Math.PI/2,0,0]} c="#546e70" />
-    {[.1,.18,.25].map(r=><mesh key={r} position={[-.25,.41,.365]}><ringGeometry args={[r,r+.013,24]} /><meshToonMaterial color="#a0b4ad" side={THREE.DoubleSide} /></mesh>)}
-    {Array.from({length:7},(_,i)=><Box key={i} p={[.4,.18+i*.075,.338]} s={[.3,.018,.025]} c="#62837e" outline={false} />)}
-    <Pipe a={[-.55,0,.25]} b={[-.55,0,-.25]} radius={.035} /><Pipe a={[.55,0,.25]} b={[.55,0,-.25]} radius={.035} />
-  </group>
-}
+const blocks: { x: number; z: number; w: number; d: number; h: number; c: string }[] = [
+  { x: -13.6, z: -7, w: 9.8, d: 15, h: 19, c: '#737c7b' },
+  { x: 13.8, z: -14.5, w: 8.5, d: 18, h: 23, c: '#647675' },
+  { x: 1.3, z: -24, w: 12.3, d: 18, h: 27, c: '#6c7979' },
+  { x: -25, z: -17, w: 10, d: 21, h: 29, c: '#566b70' },
+  { x: 25, z: -23, w: 10, d: 25, h: 32, c: '#6b787a' },
+  { x: -14, z: -34, w: 9, d: 15, h: 33, c: '#586970' },
+  { x: 13, z: -40, w: 8, d: 12, h: 37, c: '#566a73' },
+  { x: -3, z: -46, w: 14, d: 14, h: 38, c: '#5a6d78' },
+  { x: -36, z: -30, w: 10, d: 15, h: 37, c: '#546670' },
+]
 
-function Bicycle() {
-  const tubes: [V3,V3][] = [
-    [[-.61,.42,0],[-.13,.92,0]],[[-.13,.92,0],[.16,.42,0]],[[.16,.42,0],[-.61,.42,0]],
-    [[-.13,.92,0],[.52,.94,0]],[[.52,.94,0],[.16,.42,0]],[[.52,.94,0],[.78,.42,0]],
-    [[-.13,.92,0],[-.2,1.14,0]],[[.52,.94,0],[.49,1.26,0]],[[.49,1.26,0],[.7,1.3,0]],
-  ]
-  return <group position={[-4.3,.25,2.17]} rotation={[.07,-.08,-.065]} name="bicycle-with-basket">
-    {[-.61,.78].map(x=><group key={x} position={[x,.42,0]}>
-      <mesh><torusGeometry args={[.405,.045,8,32]} /><meshToonMaterial color="#263e4d" /></mesh>
-      <mesh><torusGeometry args={[.35,.018,6,32]} /><meshToonMaterial color="#a0c1b9" /></mesh>
-      {Array.from({length:12},(_,i)=>{const a=i/12*Math.PI*2;return <Pipe key={i} a={[0,0,0]} b={[Math.cos(a)*.35,Math.sin(a)*.35,0]} radius={.006} color="#c6d2c1" />})}
-      <Cylinder p={[0,0,0]} radius={.04} height={.14} rotation={[Math.PI/2,0,0]} c="#4a686c" />
+function Buildings() {
+  const map = useMemo(concreteTexture, [])
+  const { trim, dark, lit } = useMemo(() => {
+    const rng = random(99), trim: Part[] = [], dark: Part[] = [], lit: Part[] = []
+    blocks.forEach((b, n) => {
+      const front = b.z + b.d / 2 + .04
+      for (let y = 3.8; y < b.h - 1; y += 3.1) {
+        trim.push({ p: [b.x, y - 1.4, front], s: [b.w + .06, .07, .14], c: '#465859' })
+        for (let x = b.x - b.w / 2 + 1.1; x < b.x + b.w / 2 - .5; x += 1.9) {
+          const isLit = rng() > .72
+          const parts = isLit ? lit : dark
+          parts.push({ p: [x, y, front + .04], s: [1.08, 1.55, .035], c: isLit ? (rng() > .5 ? '#a4bcb6' : '#d7bb84') : '#14292f' })
+          trim.push({ p: [x, y, front + .075], s: [.045, 1.59, .045], c: '#526261' })
+          if (isLit && rng() > .5) trim.push({ p: [x, y + .3, front + .08], s: [1.07, .06, .03], c: '#647366' })
+        }
+      }
+      if (n < 3) for (let y = 4; y < b.h - 2; y += 6.2) {
+        const x = b.x + b.w / 2 + .06
+        for (const z of [b.z + 3, b.z - 2]) {
+          dark.push({ p: [x, y, z], s: [.04, 1.4, 1.15], c: '#14292c' })
+          trim.push({ p: [x + .3, y - 1.3, z], s: [.64, .62, 1.0], c: '#7c8a81' })
+          for (let i = 0; i < 6; i++) trim.push({ p: [x + .63, y - 1.5 + i * .075, z], s: [.035, .023, .82], c: '#384b4c' })
+        }
+      }
+    })
+    return { trim, dark, lit }
+  }, [])
+  return <>
+    {blocks.map((b, i) => <group key={i}>
+      <mesh position={[b.x, b.h / 2, b.z]} castShadow receiveShadow><boxGeometry args={[b.w, b.h, b.d]} /><meshStandardMaterial color={b.c} map={map} roughness={.92} /></mesh>
+      <Box p={[b.x, b.h + .15, b.z]} s={[b.w + .25, .3, b.d + .2]} c="#293c41" />
+      {i < 3 && <Pipe a={[b.x + b.w / 2 - .25, .4, b.z + b.d / 2 + .12]} b={[b.x + b.w / 2 - .25, b.h, b.z + b.d / 2 + .12]} radius={.075} color="#78877f" />}
     </group>)}
-    {tubes.map(([a,b],i)=><Pipe key={i} a={a} b={b} radius={.025} color="#cda47d" />)}
-    <Box p={[-.22,1.14,0]} s={[.32,.07,.19]} c="#334c50" />
-    <Pipe a={[.7,1.3,-.18]} b={[.7,1.3,.18]} radius={.034} color="#d9c7aa" />
-    <Pipe a={[.16,.42,-.14]} b={[.16,.42,.14]} radius={.028} />
-    <Box p={[.23,.38,.16]} s={[.2,.04,.12]} c="#34505a" />
-    <Pipe a={[.16,.42,0]} b={[-.04,.05,.22]} radius={.015} />
-    <Box p={[.86,1.08,0]} s={[.4,.33,.39]} c="#8eaca4" />
-    <Box p={[.86,1.26,0]} s={[.44,.045,.44]} c="#c1d1bd" />
-    {Array.from({length:6},(_,i)=><Pipe key={i} a={[.67+i*.075,.94,.207]} b={[.67+i*.075,1.25,.207]} radius={.008} color="#4e7772" />)}
-    <Box p={[-.6,.92,0]} s={[.6,.04,.18]} c="#739b91" />
+    <Batch parts={trim} /><Batch parts={dark} roughness={.3} metalness={.25} /><Batch parts={lit} emissive />
+    <Sign p={[-10.2, 8, .6]} size={[.9, 5.0]} texture={signTexture('居酒屋', '#74352b', '#e1c49a', true)} brightness={.8} />
+    <Sign p={[-14.2, 3.0, .6]} size={[7.3, .85]} texture={signTexture('炭火焼 とりよし', '#29342f', '#cabfa0')} brightness={.75} />
+    <Sign p={[-12, 12.8, .6]} size={[2.1, .8]} texture={signTexture('喫茶 雨音', '#425958', '#b5c8bf')} brightness={.8} />
+    <Sign p={[9.4, 12.5, -5.35]} size={[1.05, 5.7]} texture={signTexture('カラオケ', '#472f38', '#c87f92', true)} brightness={1.2} />
+    <Sign p={[14, 5.0, -5.35]} size={[7.2, 1.1]} texture={signTexture('渋谷 らーめん', '#292d2c', '#d2c4a4')} brightness={.8} />
+    <Sign p={[14.7, 17.5, -5.35]} size={[3.7, 1.6]} texture={signTexture('HOTEL 24', '#2a373b', '#93afb0')} brightness={.9} />
+    <Sign p={[-25.7, 11, -6.44]} size={[1.6, 6.2]} texture={signTexture('渋谷薬局', '#294c45', '#b3c5ad', true)} brightness={.8} />
+    <Sign p={[1.5, 18, -14.94]} size={[7, 1.6]} texture={signTexture('TOKYO  •  東京', '#334b54', '#a9c3c1')} brightness={.65} />
+    {/* Roller shutter and a few street-level shop details. */}
+    <Box p={[-14, 1.45, .55]} s={[6.8, 2.8, .08]} c="#394e4f" metalness={.3} />
+    <Batch parts={Array.from({ length: 25 }, (_, i) => ({ p: [-14, .15 + i * .105, .62], s: [6.8, .025, .03], c: '#53635f' }))} />
+  </>
+}
+
+function Bicycle({ position, rotation = 0, color = '#657c73' }: { position: V3; rotation?: number; color?: string }) {
+  const frame: [V3, V3][] = [
+    [[-.65, .52, 0], [-.14, .59, 0]], [[-.14, .59, 0], [-.42, 1.13, 0]], [[-.42, 1.13, 0], [-.65, .52, 0]],
+    [[-.42, 1.13, 0], [.38, 1.14, 0]], [[.38, 1.14, 0], [-.14, .59, 0]], [[.38, 1.14, 0], [.72, .52, 0]],
+    [[.38, 1.14, 0], [.34, 1.4, 0]], [[.34, 1.4, 0], [.54, 1.45, 0]], [[-.42, 1.13, 0], [-.46, 1.36, 0]],
+  ]
+  return <group position={position} rotation={[0, rotation, .035]}>
+    {[-.65, .72].map(x => <group key={x} position={[x, .53, 0]}>
+      <mesh><torusGeometry args={[.46, .035, 7, 30]} /><meshStandardMaterial color="#17282a" roughness={.6} /></mesh>
+      <mesh><torusGeometry args={[.415, .013, 5, 30]} /><meshStandardMaterial color="#9baaa0" metalness={.8} roughness={.3} /></mesh>
+      {Array.from({ length: 10 }, (_, i) => {
+        const a = i * Math.PI / 5
+        return <Pipe key={i} a={[0, 0, 0]} b={[Math.cos(a) * .41, Math.sin(a) * .41, 0]} radius={.004} color="#a2aca2" />
+      })}
+    </group>)}
+    {frame.map(([a, b], i) => <Pipe key={i} a={a} b={b} color={color} radius={.024} />)}
+    <Box p={[-.46, 1.37, 0]} s={[.3, .06, .18]} c="#1b2828" />
+    <Box p={[.69, 1.26, 0]} s={[.39, .28, .36]} c="#59645d" roughness={.6} />
+    <Pipe a={[-.14, .59, -.14]} b={[-.14, .59, .14]} radius={.025} />
+    <Pipe a={[-.3, .6, .14]} b={[-.05, .6, .14]} radius={.026} color="#1b2828" />
   </group>
 }
 
-function StreetLamp() {
-  return <group position={[6.62,0,2.02]} name="warm-street-lamp">
-    <Cylinder p={[0,.16,0]} radius={.2} height={.28} c="#364f5c" />
-    <Pipe a={[0,0,0]} b={[0,5.5,0]} radius={.065} color="#4c6875" />
-    <Pipe a={[0,5.5,0]} b={[-.37,5.8,0]} radius={.065} color="#4c6875" />
-    <Pipe a={[-.37,5.8,0]} b={[-1,5.8,0]} radius={.06} color="#4c6875" />
-    <Box p={[-1,5.74,0]} s={[.65,.14,.37]} c="#526f77" />
-    <Box p={[-1,5.65,0]} s={[.5,.055,.28]} c="#ffe3ad" glow="#ffd590" intensity={3.1} outline={false} />
-    <pointLight position={[-1,5.45,0]} color="#ffd8a0" intensity={35} distance={10} decay={2} />
-    <Sign p={[.01,3.18,.08]} size={[.38,1.02]} texture={signTexture('小春町','#d4d7c3','#4b6d6a',true)} />
-  </group>
-}
-
-function UtilityPoles() {
-  const wire = useMemo(()=>{
-    const out:V3[][]=[]
-    for(let i=0;i<3;i++){
-      const pts:V3[]=[]
-      for(let j=0;j<=24;j++){const t=j/24;pts.push([-7.08+t*13.8,6.5-Math.sin(t*Math.PI)*1.05+i*.14,-.15+t*-6.6+i*.22])}
-      out.push(pts)
+function Utilities() {
+  const wires = useMemo(() => {
+    const out = []
+    for (let i = 0; i < 6; i++) {
+      const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(-17, 11.7 + i * .13, 3 + i * .14), new THREE.Vector3(-3, 9.2 + i * .12, -2 + i * .14), new THREE.Vector3(12, 11.5 + i * .13, -10 + i * .14), new THREE.Vector3(29, 10.8 + i * .13, -24 + i * .14)])
+      out.push(new THREE.TubeGeometry(curve, 32, .015, 4, false))
     }
     return out
-  },[])
-  return <group name="utility-poles-and-sagging-wires">
-    {([[-7.08,0,-.15],[6.72,0,-6.75]] as V3[]).map((p,i)=><group key={i} position={p}>
-      <Cylinder p={[0,3.15,0]} radius={.105} height={6.3} c="#788991" />
-      <Cylinder p={[0,.48,0]} radius={.125} height={.95} c="#647c82" />
-      <Box p={[0,5.83,0]} s={[1.1,.11,.13]} c="#4c6472" />
-      <Box p={[0,6.43,.2]} s={[.87,.1,.12]} c="#4c6472" />
-      {[-.36,0,.36].map(x=><group key={x}><Cylinder p={[x,6.6,.2]} radius={.055} height={.24} c="#c0c6b3" /><Cylinder p={[x,6.62,.2]} radius={.075} height={.035} c="#768f8c" /></group>)}
-      <Cylinder p={[.24,5.21,0]} radius={.2} height={.69} c="#b5c1b1" />
-      <Box p={[0,2.4,.13]} s={[.27,.67,.12]} c="#c2c2a9" />
-      <Pipe a={[.28,5.54,0]} b={[.4,6.2,0]} radius={.014} color="#294350" />
-      {[1,1.16,1.32].map(y=><Box key={y} p={[0,y,.11]} s={[.16,.075,.025]} c="#e0bd74" outline={false} />)}
+  }, [])
+  return <>
+    {wires.map((geometry, i) => <mesh key={i} geometry={geometry}><meshStandardMaterial color="#15252c" /></mesh>)}
+    {[[-16.8, 2.8], [11.8, -10.2]].map(([x, z], i) => <group key={i} position={[x, 0, z]}>
+      <Pipe a={[0, 0, 0]} b={[0, 12.2, 0]} radius={.13} color="#536668" />
+      <Box p={[0, 10.8, 0]} s={[3, .12, .13]} c="#293e43" />
+      <Box p={[.4, 8.9, 0]} s={[.65, 1.05, .65]} c="#596a68" />
+      <Pipe a={[0, 8.6, 0]} b={[1.8, 8.6, 0]} radius={.04} />
+      <Box p={[1.8, 8.5, 0]} s={[.65, .12, .35]} c="#c3d5c8" glow="#cce3d2" intensity={1.8} />
+      <spotLight position={[1.8, 8.4, 0]} target-position={[x + 1.8, 0, z]} angle={.85} penumbra={1} intensity={50} distance={22} color="#adc6ca" />
     </group>)}
-    {wire.map((points,i)=><Line key={i} points={points} color="#263e52" lineWidth={1.3} />)}
-    <Line points={Array.from({length:17},(_,j)=>{const t=j/16;return [-7.08+t*.65,5.6-Math.sin(t*Math.PI)*.3,-.15-t*5.8] as V3})} color="#314a58" lineWidth={1.2} />
-  </group>
-}
-
-function TrafficSignal() {
-  const lights=useRef<THREE.MeshBasicMaterial[]>([])
-  useFrame(({clock,gl})=>{
-    const phase=Math.floor(clock.elapsedTime/12)%3
-    lights.current.forEach((m,i)=>{ if(m)m.color.set(i===phase?['#b9e4b5','#e8c880','#df8873'][i]:'#374e59') })
-    gl.domElement.dataset.signal=String(phase)
-  })
-  return <group position={[6.7,.02,-6.75]} name="cycling-traffic-signal">
-    <Pipe a={[0,0,0]} b={[0,3.8,0]} radius={.045} />
-    <Pipe a={[0,3.8,0]} b={[-.66,3.8,0]} radius={.04} />
-    <Box p={[-.72,3.72,.05]} s={[.99,.36,.28]} c="#425e65" />
-    {[0,1,2].map(i=><mesh key={i} position={[-1.04+i*.32,3.72,.21]}><circleGeometry args={[.115,24]} /><meshBasicMaterial ref={m=>{if(m)lights.current[i]=m}} toneMapped={false} /></mesh>)}
-  </group>
-}
-
-function Alley() {
-  const blocks = useMemo(()=>{
-    const p:Part[]=[]
-    for(let z=-7.3;z<-1;z+=.37)for(let y=.4;y<2.15;y+=.32)p.push({p:[-7.54,y,z],s:[.19,.3,.35],c:(Math.round(y*10)%2?'#76888b':'#677e85')})
-    return p
-  },[])
-  return <group name="narrow-side-alley">
-    <Batch parts={blocks} outline />
-    <Box p={[-7.51,2.2,-4.24]} s={[.31,.13,6.55]} c="#899d9a" />
-    <Sign p={[-7.32,1.4,-4.4]} rotation={[0,Math.PI/2,0]} size={[1.62,1.12]} texture={foodTexture('notice')} />
-    <AirConditioner p={[-6.55,.26,-4.6]} rotation={Math.PI/2} />
-    <Pipe a={[-6.8,.8,-4]} b={[-6.8,2.3,-4]} radius={.025} color="#a7b6a4" />
-    <Pipe a={[-6.8,2.3,-4]} b={[-6.1,2.3,-4]} radius={.025} color="#a7b6a4" />
-    <Box p={[-6.55,.5,-6.65]} s={[.75,.45,.57]} c="#9b8e72" />
-    <Box p={[-6.55,.93,-6.65]} s={[.66,.36,.56]} c="#b3a17b" />
-    <Sign p={[-6.53,1.93,-6.63]} size={[1.05,.24]} texture={signTexture('こはる小路','#456b6a','#d0d2b3')} />
-    <pointLight position={[-6.6,1.8,-3]} color="#82b6c3" intensity={4} distance={5} />
-  </group>
-}
-
-function Guardrail() {
-  return <group name="corner-guardrails">
-    {[[-6.18,3.08],[-3.15,3.08],[1.45,3.08],[3.78,3.08]].map(([x,z],i)=><group key={i}>
-      <Pipe a={[x,.3,z]} b={[x,1.05,z]} radius={.043} color="#b7c7b7" />
-      <Cylinder p={[x,.32,z]} radius={.075} height={.15} c="#809d93" />
-    </group>)}
-    <Pipe a={[-6.18,.95,3.08]} b={[-3.15,.95,3.08]} radius={.04} color="#acc6b5" />
-    <Pipe a={[-6.18,.58,3.08]} b={[-3.15,.58,3.08]} radius={.027} color="#809e98" />
-    <Pipe a={[1.45,.95,3.08]} b={[3.78,.95,3.08]} radius={.04} color="#acc6b5" />
-    <Pipe a={[1.45,.58,3.08]} b={[3.78,.58,3.08]} radius={.027} color="#809e98" />
-    <Pipe a={[3.78,.95,3.08]} b={[4.57,.95,2.28]} radius={.04} color="#acc6b5" />
-    <Pipe a={[4.57,.3,2.28]} b={[4.57,.95,2.28]} radius={.043} color="#b7c7b7" />
-  </group>
+    <group position={[9.4, 0, 1.8]}>
+      <Pipe a={[0, 0, 0]} b={[0, 5.6, 0]} radius={.048} color="#586765" />
+      <mesh position={[0, 4.7, .03]}><circleGeometry args={[.47, 32]} /><meshStandardMaterial color="#b64c3e" /></mesh>
+      <Box p={[0, 4.7, .06]} s={[.66, .12, .015]} c="#dbdfc9" />
+      <Sign p={[0, 3.65, .06]} size={[.7, 1]} texture={signTexture('止まれ', '#344d58', '#d1d9c9', true)} brightness={.65} />
+    </group>
+    <group position={[-8.35, 0, 1.0]}>
+      <Pipe a={[0, 0, 0]} b={[0, 6.9, 0]} radius={.055} />
+      <Box p={[0, 5.9, 0]} s={[1.5, 1.65, .3]} c="#b5bdb0" />
+      <Sign p={[0, 5.9, .16]} size={[1.38, 1.5]} texture={sevenTexture()} brightness={1.6} />
+    </group>
+    <Bicycle position={[8.15, .18, -.05]} rotation={-.6} />
+    <Bicycle position={[-9.6, .17, 1.4]} rotation={.2} color="#a4a297" />
+    {[-8.0, 7.9].map(x => <group key={x}><Pipe a={[x, .2, 1.7]} b={[x, 1.15, 1.7]} radius={.065} color="#657c75" /><Box p={[x, .99, 1.7]} s={[.16, .1, .16]} c="#c5bc8c" /></group>)}
+  </>
 }
 
 export function Neighborhood() {
-  return <group name="japanese-street-details">
-    <Alley /><Bicycle /><StreetLamp /><UtilityPoles /><TrafficSignal /><Guardrail />
-    <AirConditioner p={[-4.92,4.07,-4.95]} />
-    <AirConditioner p={[2.83,4.07,-4.95]} rotation={Math.PI/2} />
-    <Cylinder p={[-4.2,4.4,-4.94]} radius={.18} height={.6} c="#a4b5a4" />
-    <Cylinder p={[-4.2,4.72,-4.94]} radius={.25} height={.07} c="#5b7d77" />
-    <group position={[4.65,.24,-.6]} rotation={[0,Math.PI/2,0]}>
-      <Box p={[0,1.26,0]} s={[1.2,1.46,.13]} c="#5c7b70" />
-      <Sign p={[0,1.26,.075]} size={[1.08,1.31]} texture={foodTexture('notice')} />
-      <Pipe a={[-.43,0,0]} b={[-.43,1.3,0]} /><Pipe a={[.43,0,0]} b={[.43,1.3,0]} />
-      <Box p={[0,2.05,0]} s={[1.4,.08,.42]} c="#7fa193" />
-    </group>
-    <group position={[4.62,.25,-5.6]}>
-      <Pipe a={[0,0,0]} b={[0,2.8,0]} radius={.035} color="#9db4af" />
-      <Box p={[0,2.65,0]} s={[1.65,.32,.08]} c="#5d92a0" />
-      <Sign p={[0,2.65,.048]} size={[1.59,.27]} texture={signTexture('小春通り →','#517d91','#e1e9d6')} />
-      <mesh position={[0,2.06,.03]} rotation={[0,0,Math.PI]}><circleGeometry args={[.36,3]} /><meshBasicMaterial color="#d8c8ac" side={THREE.DoubleSide} /></mesh>
-      <mesh position={[0,2.06,.04]} rotation={[0,0,Math.PI]}><circleGeometry args={[.3,3]} /><meshBasicMaterial color="#b76a60" side={THREE.DoubleSide} /></mesh>
-      <Sign p={[0,2.11,.052]} size={[.37,.11]} texture={signTexture('止まれ','#b76a60','#fff1d7')} />
-    </group>
-    <group position={[-5.9,.25,-6.4]}>
-      <Cylinder p={[0,.2,0]} radius={.22} height={.36} c="#a98670" />
-      {[0,1,2,3,4].map(i=><mesh key={i} position={[(i%2)*.2-.1,.48+i*.055,Math.sin(i)*.13]} rotation={[0,i,0]}><sphereGeometry args={[.22,5,4]} /><meshToonMaterial color={i%2?'#749b80':'#91a883'} /></mesh>)}
-    </group>
-  </group>
+  return <group name="shibuya-neighborhood"><Buildings /><Utilities /></group>
 }

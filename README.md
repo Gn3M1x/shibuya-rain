@@ -1,88 +1,118 @@
-# 雨宿り · Koharu After Rain
+# Shibuya Rain — 雨夜涩谷
 
-**在线体验：[打开雨宿り · Koharu After Rain](https://gn3m1x.github.io/koharu-after-rain/)**
+[在线体验 Shibuya Rain](https://gn3m1x.github.io/shibuya-rain/)
 
-一个可自由旋转、缩放、平移观看的日式雨夜便利店微缩景观。所有建筑与街景收在完整的 16 × 16 正方形底座内；页面只有实时三维画面，没有标题、按钮、菜单或操作提示。
+一个可以停留、漫游、构图和拍照的实时三维雨夜空间。以东京涩谷街角的便利店为视觉中心，采用偏冷的街道、温暖的店内灯光、低机位镜头和局部积水反射。
 
-## 实际运行截图
+场景由程序化三维对象、Canvas 材质和 GLSL 天气系统组成。没有背景照片、视频、生成图片、在线模型或付费素材。字体随构建打包，运行时不需要连接素材 CDN。
 
-以下截图来自生产构建的真实浏览器验收，展示完整微缩场景、可见的便利店室内和模型背面。
+## 本地运行
 
-![雨夜便利店微缩景观整体](docs/screenshots/01-overview.png)
-
-| 店内细节 | 模型背面 |
-| --- | --- |
-| ![透过玻璃看到明亮充实的店内](docs/screenshots/03-interior-detail.png) | ![可环绕观察的模型背面](docs/screenshots/04-rear.png) |
-
-生产版浏览器验收结果为 **18 / 18 通过**，无运行或 Shader 错误、无外部素材请求。更多截图、测试项目和验证范围见 [TESTING.md](TESTING.md)。
-
-直接用 React、TypeScript、Three.js / React Three Fiber 编写程序化模型。未使用 Blender、外部模型、照片、视频或生成图片。招牌、包装和海报由 Canvas 绘制，天气由 GLSL 着色器驱动。
-
-## 运行
-
-需要 Node.js 22.12+、npm 和支持 WebGL 2 的浏览器。
+要求：Node.js 22.12+（本次使用 Node.js 24.21.0）、npm、支持 WebGL 2 的浏览器。优先使用启用硬件加速的 macOS Chrome。
 
 ```bash
 npm ci
 npm run dev
 ```
 
-打开终端中的地址（默认 http://127.0.0.1:5173/）。
+打开终端显示的本地地址，通常为 `http://127.0.0.1:5173/`。开发服务器只监听本机。首次安装依赖需要联网；安装完成后场景、字体和音效均可本地运行。
 
 ```bash
-npm run build
-npm run preview
+npm run typecheck   # TypeScript 检查
+npm run build       # TypeScript + Vite 生产构建，输出 dist/
+npm run preview     # 本地检查生产构建，通常为 4173 端口
 ```
 
-生产文件输出在 `dist/`，可通过静态 HTTP 服务器运行。运行时不请求外部素材。
+`dist/` 可以放在支持静态文件的 HTTP 服务器上。请通过 HTTP 访问，避免直接双击 `index.html` 的 file 协议。
 
 ## 操作
 
-| 输入 | 动作 |
+| 操作 | 功能 |
 | --- | --- |
-| 左键拖动 / 单指拖动 | 自由环绕旋转，可查看背面 |
-| 滚轮 / 双指缩放 | 推近或拉远 |
-| 右键拖动 / 双指拖动 | 平移观察目标 |
-| 双击 | 恢复初始构图与缩放 |
+| 鼠标拖动 / 单指拖动 | 围绕观察目标旋转 |
+| 滚轮 / 双指缩放 | 推近、拉远 |
+| WASD / 方向键 | 沿街道平滑移动，相机保留当前高度 |
+| C | 开关缓慢运镜 |
+| R | 恢复初始机位 |
+| H | 开关摄影模式，隐藏界面和画面渐变 |
+| Escape | 恢复界面，关闭设置或说明 |
+| P / 相机按钮 | 保存当前 WebGL 画面为 PNG，照片不包含 HTML 界面 |
+| 扬声器按钮 | 主动开启 / 静音合成雨声，默认静音 |
+| 右上角设置 | 雨量、夜晚 / 傍晚、画质、运镜、重置与保存 |
 
-相机采用正交投影，默认以完整的第三视角观看模型。旋转没有方位角限制，俯仰范围限制在底座上方；缩放和平移有合理边界。视口变化会自动重新适配初始缩放。
+初始镜头高度为 1.7 m。移动速度为 2.5 m/s，带指数阻尼。建筑占地使用带安全余量的 AABB 与路径采样，防止大步长或旋转时穿墙；最低高度 1.35 m，并限制街区外边界、观察距离和旋转角度。手动移动或拖动会退出 Cinematic Mode。接近店门会触发玻璃门平滑滑动。
 
-## 场景内容
+## 画质与自适应
 
-- **便利店**：原创「こはる / KOHARU MART」招牌、转角玻璃、滑动自动门、雨棚、迎宾地垫、海报、ATM 灯箱。屋顶有玻璃天窗、空调外机、通风帽、屋边及落水管，便于从上方观看店内。
-- **室内**：带包装标签的多层货架、逐瓶陈列的饮料冷柜、冷藏便当与三角饭团、收银台和终端、咖啡机与咖啡杯、关东煮玻璃柜、杂志架、冰柜、吊挂灯箱、地砖、地面导视和后场门。
-- **街角**：L 形道路、斑马线、侧街停车位、盲道、砖铺人行道、排水沟与雨篦、井盖、护栏、贩卖机、带车筐自行车、伞架、分类垃圾桶、路灯、街道路牌、交通灯、电线杆和垂落电线。
-- **小巷**：砖墙、空调外机、管道、堆放纸箱、小植物、巷名牌与公告栏。
-- **细微动态**：持续降雨、雨棚滴水、积水涟漪、玻璃滑落水痕、招牌微闪、约 19 秒一轮的自动门、约 12 秒切换的交通灯。
+| 配置 | Low | Medium（默认） | High |
+| --- | --- | --- | --- |
+| DPR 上限 | 1.0 | 1.35 | 1.75 |
+| 满雨量雨滴上限 | 1,800 | 4,500 | 8,500 |
+| 同时活动的涟漪 | 36 | 90 | 160 |
+| 三维溅水粒子 | 180 | 450 | 800 |
+| 真实平面反射 | 关闭 | 512 px | 1024 px |
+| 水面反射近似 | 程序化柔和光斑 | 平面捕获 + 粗糙度模糊 | 更高精度平面捕获 + 模糊 |
+| Bloom、细颗粒、暗角 | 关闭 | 开启 | 开启 |
+| 动态方向光阴影 | 关闭 | 关闭 | 1024 px |
 
-## 渲染
+雨量按百分比控制 GPU 实例数量及可见度；近远雨滴具有不同长度、速度和空间遮挡。雨滴使用 GPU 位置更新，不逐帧更新成千上万个 React 组件。商品、货架、窗户、道路标线与铺装采用 InstancedMesh 批处理。
 
-主体使用四阶明暗的 Toon 材质与几何轮廓线，重复商品和铺装使用实例化批次。冷蓝色外部照明与暖色店内灯光形成层次，湿路使用真实平面捕获、模糊、水膜混合及柔和灯光斑。阴影、ACES 色调映射和少量 Bloom 保留模型感。
+逻辑处理器数不超过 4 的设备初始选择 Low。其余设备初始选择 Medium。渲染器预热 12 秒后，如果连续三个约 2 秒的采样窗口低于 25 FPS，自动降低一级画质。隐藏标签页和恢复时的超长帧不触发降级。右上角设置可查看 FPS 和当前档位。
 
-雨水、水痕和波纹采用视觉模拟，不进行流体计算。雨丝在便利店区域避开屋顶下方；天窗和橱窗采用透明材质。无人物和车辆。本次不包含第一人称漫游、界面设置或音频自动播放。
+这里的阈值是保护措施，不是对任何设备的帧率保证。Intel MacBook 建议从 Low 或 Medium 开始。高分辨率窗口、多个同时渲染的标签页、录屏和节能模式均会影响性能。High 的平面反射会增加一次场景渲染；没有启用 SSR 或实时路径追踪。
 
-## 文件
+## 模块结构
 
-| 文件 | 内容 |
-| --- | --- |
-| `src/App.tsx`、`src/styles.css` | 无 UI 的全屏画布 |
-| `src/config.ts`、`src/scene/CameraRig.tsx` | 初始构图、轨道控制、响应式适配与复位 |
-| `src/scene/ConvenienceStore.tsx` | 建筑、完整室内、招牌、自动门和门口设施 |
-| `src/scene/Neighborhood.tsx` | 自行车、电线、路灯、设备、公告栏和小巷 |
-| `src/scene/Street.tsx`、`WetRoad.tsx` | 正方形底座、街道、铺装、排水和正交相机平面反射 |
-| `src/scene/Weather.tsx` | GPU 雨、滴水、波纹、水痕和灯光斑 |
-| `src/scene/Primitives.tsx`、`materials.ts` | 卡通材质、轮廓批次、建模组件和程序化贴图 |
-| `scripts/browser-smoke.mjs` | Chrome 浏览器验收检查 |
-
-## 浏览器验收
-
-安装独立的浏览器验收依赖，并启动本地服务器后执行（不会修改依赖锁文件）：
-
-```bash
-npm install --no-save --package-lock=false playwright
-node scripts/browser-smoke.mjs http://127.0.0.1:5173/
+```text
+src/
+  App.tsx                  界面、设置、快捷键、截图、音效生命周期
+  audio.ts                 本地 Web Audio 合成雨声
+  config.ts                画质预算、初始机位、建筑碰撞范围
+  styles.css               全屏界面、设置面板、响应式排版
+  scene/
+    Scene.tsx              光照、雾、ACES、后处理、性能采样
+    ConvenienceStore.tsx   建筑结构、室内、商品、冷柜、自动门、店外设施
+    Neighborhood.tsx       多层建筑、日文招牌、自行车、电杆、电线、空调
+    Street.tsx             柏油、湿地反射、路缘石、铺装、标线、排水与井盖
+    Weather.tsx            GPU 雨滴、雨棚滴水、涟漪、三维溅水、玻璃水痕
+    CameraRig.tsx          轨道控制、WASD、阻尼、碰撞、恢复与运镜
+    Primitives.tsx         共享盒体、实例批次、招牌、管线
+    materials.ts           可重复随机数、程序化纹理、招牌与字体绘制
+scripts/
+  browser-smoke.cjs         Chrome 交互检查脚本
+  run-browser-smoke.mjs     Playwright CLI 运行入口
 ```
 
-脚本使用已安装的 Google Chrome，以 1440 × 1000 和 390 × 844 视口检查实际渲染、无 UI、旋转、背面观察、缩放、平移、复位、自动门、交通灯、动画推进和外部资源请求。截图与结果保存到 `output/playwright/koharu/`，该目录默认不加入 Git。实际执行结果见 `TESTING.md`。
+新增建筑时同步更新 `config.ts` 的碰撞范围；新增重复对象时尽量复用 `Batch`。天气参数与画质预算集中管理。程序化纹理使用固定随机种子，便于不同版本间对比截图。
 
-验收脚本也支持 `PLAYWRIGHT_MODULE_PATH` 指向现有 Playwright 的 `index.mjs`，无需在应用项目安装测试依赖。本次使用 Codex 捆绑的 Playwright 运行。
+## 视觉取舍与边界
+
+- 这是根据东京街区特征创作的环境，不是涩谷某家店铺的测绘复原。界面时间、温度和坐标均为艺术场景设定，不是实时观测。
+- 路面采用一次真实平面捕获、粗糙度模糊和薄水层反射混合；Low 使用便宜的光反射近似。没有模拟水体流动、光线的多次反弹或全场景 SSR。
+- 雨、涟漪、溅水和水痕是独立 GPU 视觉近似。建筑屋顶会屏蔽便利店内部雨滴，尚未对整个街区实现逐建筑雨滴碰撞。
+- 玻璃采用透明 PBR 材质和轻微水痕，不进行昂贵的多层折射。窗外可以观察完整室内空间；本版本相机的活动范围以街道为主，店铺占地设有碰撞。
+- 建筑和商品优先满足比例、空间层次与灯光氛围，属于程序化环境建模，未使用照片扫描资产。模型细节与真实摄影仍有差距。
+- 当前仅实现相机与天气交互，没有行人 AI、车辆交通或可操作商品。
+
+## 浏览器检查
+
+检查采用 Playwright CLI，独立于生产依赖。先启动开发服务器，然后运行：
+
+```bash
+npx --yes --package @playwright/cli playwright-cli -s=shibuya-qa open http://127.0.0.1:5173/ --browser chrome
+node scripts/run-browser-smoke.mjs
+```
+
+检查输出到 `output/playwright/`，包括原始浏览器截图、PNG 导出、逐项结果和错误记录。这个目录默认不加入 Git。
+
+检查覆盖画质切换、雨量端点、时间切换、运镜、重置、鼠标旋转、滚轮、WASD 与店铺碰撞、摄影模式、PNG 下载、声音开关和 390 px 窄屏设置面板。测试需要已安装的 Google Chrome。结果以当次实际运行输出为准；未执行的检查不能视为通过。
+
+## 技术与素材来源
+
+- Vite、React、TypeScript、Three.js、React Three Fiber、Drei、React Three Postprocessing。
+- UI 图标来自 `lucide-react`，ISC 许可。
+- DM Sans 与 Italiana 来自 Fontsource，SIL Open Font License 1.1；字体文件本地打包。
+- 建筑、商品、街道、雨和招牌纹理由本项目代码程序化生成。7-Eleven 名称、标识与配色用于此场景的视觉表达，并非官方项目。
+- API 实现参考：[React Three Fiber 官方文档](https://r3f.docs.pmnd.rs/getting-started/introduction)、[Drei MeshReflectorMaterial 官方文档](https://drei.docs.pmnd.rs/shaders/mesh-reflector-material)。
+
+依赖版本通过 `package-lock.json` 固定。字体许可原文可见 `THIRD_PARTY_NOTICES.md`。

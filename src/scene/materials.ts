@@ -34,6 +34,19 @@ export function signTexture(text: string, bg = '#17212a', color = '#efede0', ver
   })
 }
 
+export function sevenTexture() {
+  return canvasTexture('7-eleven', 512, 512, c => {
+    c.fillStyle = '#fff9e6'; c.fillRect(0, 0, 512, 512)
+    c.fillStyle = '#008052'; c.fillRect(24, 25, 464, 461)
+    c.fillStyle = '#fffbea'; c.fillRect(65, 39, 382, 431)
+    c.fillStyle = '#ed6a20'; c.fillRect(108, 77, 294, 65)
+    c.fillStyle = '#e64429'; c.beginPath(); c.moveTo(311, 142); c.lineTo(402, 142); c.lineTo(280, 386); c.lineTo(190, 386); c.closePath(); c.fill()
+    c.fillStyle = '#fffcf0'; c.fillRect(78, 260, 352, 70)
+    c.fillStyle = '#007550'; c.font = '900 67px Arial, sans-serif'; c.textAlign = 'center'; c.fillText('ELEVEN', 256, 315)
+    c.font = '700 16px Arial'; c.fillText('OPEN 24 HOURS', 256, 439)
+  })
+}
+
 export function vendingTexture() {
   return canvasTexture('vending', 512, 768, c => {
     c.fillStyle = '#e3e5d9'; c.fillRect(0, 0, 512, 768)
@@ -52,43 +65,68 @@ export function vendingTexture() {
   })
 }
 
-export function koharuTexture(side = false) {
-  return canvasTexture(`koharu-${side}`, 1536, 256, c => {
-    c.fillStyle = '#f4efdc'; c.fillRect(0, 0, 1536, 256)
-    c.fillStyle = '#377d74'; c.fillRect(0, 0, 1536, 20); c.fillRect(0, 216, 1536, 23)
-    c.fillStyle = '#ec916b'; c.fillRect(0, 241, 1536, 15)
-    c.fillStyle = '#e9a457'; c.beginPath(); c.arc(157, 116, 56, 0, Math.PI * 2); c.fill()
-    c.strokeStyle = '#e9a457'; c.lineWidth = 6
-    for (let i=0;i<12;i++) { const a=i*Math.PI/6; c.beginPath(); c.moveTo(157+Math.cos(a)*69,116+Math.sin(a)*69); c.lineTo(157+Math.cos(a)*83,116+Math.sin(a)*83); c.stroke() }
-    c.fillStyle = '#386e66'; c.textBaseline = 'middle'; c.textAlign = 'left'; c.font = 'bold 138px "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif'; c.fillText('こはる', 292, 107)
-    c.font = '500 32px Arial'; c.fillText('K O H A R U   M A R T', 312, 188)
-    c.textAlign = 'center'; c.font = 'bold 73px Arial'; c.fillText('24', 1312, 107)
-    c.font = '23px Arial'; c.fillText('OPEN EVERY DAY', 1312, 169)
-    c.fillStyle = '#d9d0b7'; c.fillRect(1130, 56, 2, 135)
+export function posterTexture() {
+  return canvasTexture('poster', 384, 512, c => {
+    c.fillStyle = '#ece6cf'; c.fillRect(0, 0, 384, 512)
+    c.fillStyle = '#173d32'; c.fillRect(0, 0, 384, 90)
+    c.fillStyle = '#f7edcf'; c.font = 'bold 31px sans-serif'; c.textAlign = 'center'; c.fillText('おいしい、ひと息。', 192, 57)
+    c.fillStyle = '#b87936'; c.beginPath(); c.arc(192, 240, 107, 0, Math.PI * 2); c.fill()
+    c.fillStyle = '#f4e3b1'; c.beginPath(); c.arc(192, 227, 86, 0, Math.PI * 2); c.fill()
+    c.fillStyle = '#312b21'; c.font = 'bold 36px sans-serif'; c.fillText('挽きたての幸せ', 192, 397)
+    c.fillStyle = '#b13e24'; c.font = 'bold 44px Arial'; c.fillText('¥ 120', 192, 463)
   })
 }
 
-export function foodTexture(kind: 'bento' | 'onigiri' | 'magazine' | 'notice' | 'coffee') {
-  return canvasTexture(`food-${kind}`, 512, 640, c => {
-    c.fillStyle = '#f4ecd5'; c.fillRect(0, 0, 512, 640)
-    c.fillStyle = kind === 'notice' ? '#5c7d7a' : '#dc8663'; c.fillRect(0,0,512,112)
-    c.textAlign = 'center'; c.fillStyle='#fff5de'; c.font='bold 46px "Hiragino Kaku Gothic ProN", sans-serif'
-    c.fillText({bento:'手づくり弁当',onigiri:'おむすび日和',magazine:'暮らしの手帖',notice:'まちの掲示板',coffee:'一杯の、ぬくもり。'}[kind],256,73,470)
-    if (kind === 'onigiri') {
-      c.fillStyle='#47675c'; c.beginPath(); c.moveTo(256,170); c.lineTo(434,448); c.lineTo(78,448); c.closePath(); c.fill()
-      c.fillStyle='#fffbed'; c.beginPath(); c.moveTo(256,192); c.quadraticCurveTo(280,188,406,427); c.lineTo(108,427); c.closePath(); c.fill()
-      c.fillStyle='#2a4544'; c.fillRect(206,335,100,105)
-    } else if (kind === 'bento') {
-      c.fillStyle='#303f45'; c.fillRect(67,177,378,291); c.fillStyle='#e8ddbb'; c.fillRect(82,192,180,260)
-      for(let i=0;i<6;i++){ c.fillStyle=i%2?'#bf7051':'#8d9a5b'; c.beginPath(); c.arc(352+(i%2)*24,230+i*35,29,0,7); c.fill() }
-    } else if (kind === 'notice') {
-      const rng=random(58)
-      for (let i=0;i<6;i++){const x=28+(i%2)*240,y=140+Math.floor(i/2)*148;c.fillStyle=['#e3bf9f','#f7f2d5','#bfcfcb'][i%3];c.fillRect(x,y,211,125); c.fillStyle='#75868b'; for(let n=0;n<5;n++)c.fillRect(x+15,y+20+n*17,90+rng()*85,4);c.fillStyle='#ca795f';c.beginPath();c.arc(x+105,y+7,5,0,7);c.fill()}
-    } else if (kind === 'coffee') {
-      c.fillStyle='#cdb28c'; c.beginPath();c.ellipse(255,442,157,24,0,0,7);c.fill();c.fillStyle='#fffef1';c.fillRect(143,220,222,199);c.beginPath();c.ellipse(254,414,111,23,0,0,7);c.fill();c.strokeStyle='#fffef1';c.lineWidth=22;c.beginPath();c.arc(369,293,44,-1.5,1.5);c.stroke();c.fillStyle='#6c4e3d';c.beginPath();c.ellipse(254,222,106,25,0,0,7);c.fill(); c.strokeStyle='#b9a88b';c.lineWidth=7;for(let i=0;i<3;i++){c.beginPath();c.moveTo(209+i*43,177);c.bezierCurveTo(180+i*43,149,241+i*43,144,221+i*43,122);c.stroke()}
-    } else {
-      c.fillStyle='#99b8ad'; c.fillRect(38,144,436,332);c.fillStyle='#e5ba84';c.beginPath();c.arc(300,255,90,0,7);c.fill();c.fillStyle='#708f84';for(let i=0;i<7;i++)c.fillRect(40+i*65,330-i%3*32,52,145+i%3*32)
+export function asphaltTextures() {
+  const rng = random(64)
+  const color = canvasTexture('asphalt-color', 1024, 1024, c => {
+    c.fillStyle = '#555c61'; c.fillRect(0, 0, 1024, 1024)
+    for (let i = 0; i < 180000; i++) {
+      const v = 35 + rng() * 90
+      c.fillStyle = `rgba(${v},${v + 3},${v + 6},${.15 + rng() * .35})`
+      c.fillRect(rng() * 1024, rng() * 1024, rng() * 2 + .4, rng() * 2 + .4)
     }
-    if (kind !== 'notice') {c.fillStyle='#4f6d64';c.font='26px sans-serif';c.fillText('ほっとする、いつもの味。',256,533);c.fillStyle='#c67550';c.font='bold 42px Arial';c.fillText(kind==='coffee'?'¥ 120':kind==='bento'?'¥ 480':'NEW  /  こはる',256,594)}
+    for (let i = 0; i < 70; i++) {
+      c.strokeStyle = 'rgba(20,24,27,.23)'; c.lineWidth = .6 + rng() * 2
+      c.beginPath(); let x = rng() * 1024, y = rng() * 1024; c.moveTo(x, y)
+      for (let j = 0; j < 7; j++) { x += (rng() - .5) * 100; y += rng() * 60; c.lineTo(x, y) }
+      c.stroke()
+    }
+  })
+  const roughness = canvasTexture('asphalt-rough', 512, 512, c => {
+    const pixels = c.createImageData(512, 512)
+    for (let y = 0; y < 512; y++) for (let x = 0; x < 512; x++) {
+      const n = Math.sin(x * .027 + Math.sin(y * .017) * 2.8) * Math.sin(y * .043 + Math.sin(x * .013) * 3.1)
+        + Math.sin(x * .087 + y * .075) * .24
+      const v = 170 + 65 * Math.max(-.85, Math.min(1, n)) + rng() * 10
+      const i = (y * 512 + x) * 4
+      pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = v; pixels.data[i + 3] = 255
+    }
+    c.putImageData(pixels, 0, 0)
+  })
+  const normal = canvasTexture('asphalt-normal', 512, 512, c => {
+    const pixels = c.createImageData(512, 512)
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      pixels.data[i] = 128 + (rng() - .5) * 26
+      pixels.data[i + 1] = 128 + (rng() - .5) * 48
+      pixels.data[i + 2] = 254; pixels.data[i + 3] = 255
+    }
+    c.putImageData(pixels, 0, 0)
+  })
+  for (const t of [color, roughness, normal]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(12, 12) }
+  roughness.colorSpace = normal.colorSpace = THREE.NoColorSpace
+  return { color, roughness, normal }
+}
+
+export function concreteTexture() {
+  return canvasTexture('concrete', 512, 512, c => {
+    const rng = random(51)
+    c.fillStyle = '#626967'; c.fillRect(0, 0, 512, 512)
+    for (let i = 0; i < 11000; i++) {
+      c.fillStyle = `rgba(17,25,29,${rng() * .18})`; c.fillRect(rng() * 512, rng() * 512, rng() * 3 + .5, rng() * 30)
+    }
+    c.strokeStyle = '#363e3f'; c.lineWidth = 2
+    for (let i = 0; i < 8; i++) { c.beginPath(); c.moveTo(0, i * 64); c.lineTo(512, i * 64); c.stroke() }
+    for (let j = 0; j < 8; j++) for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(i * 128 + (j % 2) * 64, j * 64); c.lineTo(i * 128 + (j % 2) * 64, j * 64 + 64); c.stroke() }
   })
 }
